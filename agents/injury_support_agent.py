@@ -1,54 +1,70 @@
-from typing import Dict
+from typing import Dict, Optional
 from context import UserSessionContext
-from guardrails import validate_injury_input
+from config.settings import Settings
 
 class InjurySupportAgent:
     name = "injury_support"
-    description = "Specialized agent for handling injury-related concerns and modifications"
+    description = "Specialized agent for handling injury-related queries and providing safe exercise modifications"
 
-    async def handle_request(self, context: UserSessionContext, injury_description: str) -> Dict:
+    def __init__(self):
+        self.client = Settings.get_openai_client()
+
+    async def get_ai_response(self, context: str, query: str) -> str:
+        """Get AI response with injury and rehabilitation expertise."""
+        system_prompt = """You are a qualified physical therapy and rehabilitation expert with extensive knowledge of 
+        exercise modifications, injury prevention, and safe recovery practices. Always prioritize safety and injury 
+        prevention in your advice. Recommend consulting healthcare providers for specific medical conditions or severe 
+        injuries. Focus on providing safe alternatives and recovery strategies."""
+        
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Context: {context}\n\nQuery: {query}"}
+        ]
+        
+        model_config = Settings.get_model_config()
+        response = self.client.chat.completions.create(
+            model=model_config["model"],
+            messages=messages,
+            temperature=model_config["temperature"],
+            max_tokens=model_config["max_tokens"]
+        )
+        
+        return response.choices[0].message.content
+
+    async def handle_request(self, context: UserSessionContext, query: str) -> Dict:
         """
-        Provides injury-specific workout modifications and recovery advice.
+        Handles injury-related queries and provides exercise modifications.
         
         Args:
             context: User session context
-            injury_description: Description of the injury and concerns
+            query: User's injury-related query
             
         Returns:
-            Modified workout plan and recovery recommendations
+            Exercise modifications and safety recommendations
         """
-        # Validate injury description
-        if not validate_injury_input(injury_description):
-            raise ValueError("Please provide injury location, pain level, and duration")
-
-        # Example response (in real implementation, this would use more sophisticated logic)
+        # Build context string
+        context_str = f"User's health goal: {context.goal if context.goal else 'Not specified'}"
+        if hasattr(context, 'injuries'):
+            context_str += f"\nReported injuries: {', '.join(context.injuries)}"
+        if hasattr(context, 'fitness_level'):
+            context_str += f"\nFitness level: {context.fitness_level}"
+            
+        # Get AI response
+        response_text = await self.get_ai_response(context_str, query)
+        
+        # Structure the response
         response = {
-            "modified_exercises": [
-                {
-                    "original": "Squats",
-                    "modification": "Wall sits",
-                    "reason": "Reduces knee impact while maintaining strength"
-                },
-                {
-                    "original": "Running",
-                    "modification": "Swimming",
-                    "reason": "Low-impact cardio alternative"
-                }
-            ],
-            "recovery_tips": [
-                "Apply ice for 15-20 minutes every 2-3 hours",
-                "Gentle stretching exercises",
-                "Consider physical therapy consultation"
-            ],
-            "warning_signs": [
-                "Increased pain during exercise",
-                "Swelling",
-                "Limited range of motion"
-            ]
+            "message": response_text,
+            "type": "injury_support"
         }
         
         return response
 
     async def on_handoff(self, context: UserSessionContext) -> None:
         """Called when control is handed to this agent."""
-        context.log_handoff(f"Control handed to {self.name} agent") 
+        context.log_handoff(f"Control handed to {self.name} agent")
+        # Initialize any agent-specific context here
+        if not hasattr(context, 'injuries'):
+            context.injuries = []
+        if not hasattr(context, 'fitness_level'):
+            context.fitness_level = "beginner" 

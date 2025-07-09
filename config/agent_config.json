@@ -1,0 +1,84 @@
+{
+  "model": {
+    "provider": "openrouter",
+    "available_models": [
+      "mistralai/mistral-7b-instruct:free",
+      "meta-llama/llama-2-13b-chat:free",
+      "openchat/openchat-7b:free",
+      "phind/phind-codellama-34b:free"
+    ],
+    "default_model": "mistralai/mistral-7b-instruct:free",
+    "temperature": 0.7,
+    "max_tokens": 500,
+    "stream_chunk_size": 50
+  },
+  "openrouter": {
+    "api_key": null,
+    "api_base": "https://openrouter.ai/api/v1",
+    "referer": "https://github.com/OpenRouterTeam/openrouter-python",
+    "headers": {
+      "HTTP-Referer": "https://github.com/OpenRouterTeam/openrouter-python",
+      "X-Title": "Health Agent"
+    }
+  },
+  "response_limits": {
+    "max_retries": 3,
+    "timeout": 30,
+    "stream_timeout": 60
+  },
+  "features": {
+    "meal_planning": true,
+    "workout_planning": true,
+    "goal_setting": true,
+    "progress_tracking": true,
+    "specialized_agents": true,
+    "streaming": true
+  },
+  "tools": {
+    "goal_analyzer": {
+      "enabled": true,
+      "validate_input": true
+    },
+    "meal_planner": {
+      "enabled": true,
+      "max_days": 7
+    },
+    "workout_recommender": {
+      "enabled": true,
+      "difficulty_levels": ["beginner", "intermediate", "advanced"]
+    },
+    "progress_tracker": {
+      "enabled": true,
+      "metrics": ["weight", "measurements", "energy", "mood"]
+    },
+    "checkin_scheduler": {
+      "enabled": true,
+      "frequency": "weekly"
+    }
+  },
+  "specialized_agents": {
+    "nutrition_expert": {
+      "enabled": true,
+      "triggers": ["diabetic", "allergy", "gluten", "lactose"]
+    },
+    "injury_support": {
+      "enabled": true,
+      "triggers": ["injury", "pain", "rehabilitation"]
+    },
+    "escalation": {
+      "enabled": true,
+      "triggers": ["human", "coach", "expert"]
+    }
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "agent.log",
+    "stream_logs": true
+  },
+  "safety": {
+    "max_message_length": 1000,
+    "validate_input": true,
+    "sanitize_output": true,
+    "content_filter": true
+  }
+} 

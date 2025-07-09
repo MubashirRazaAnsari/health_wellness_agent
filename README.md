@@ -1,100 +1,147 @@
-# Health & Wellness Planner Agent
+# Health & Wellness Planner Agent 🏥
 
-An AI-powered health and wellness planner that helps users achieve their fitness goals through personalized meal plans, workout recommendations, and expert advice.
+An AI-powered health and wellness planning assistant that helps users achieve their fitness goals through personalized recommendations and real-time interaction.
 
-## Features
+## 🌟 Features
 
-- Natural language goal setting and analysis
-- Personalized meal planning with dietary preferences
-- Custom workout recommendations based on experience level
-- Injury-aware exercise modifications
-- Specialized nutrition advice for specific conditions
-- Progress tracking and regular check-ins
+- 💬 Natural language conversation with real-time streaming responses
+- 🎯 Goal analysis and structured health plan generation
+- 🍽️ Personalized meal planning with dietary preferences
+- 💪 Custom workout recommendations based on fitness level
+- 📊 Progress tracking and scheduled check-ins
+- 🔄 Context-aware responses that remember your preferences
+- 🏥 Specialized agents for nutrition and injury support
+- 📱 Beautiful Streamlit web interface
 
-## Project Structure
+## 🚀 Getting Started
 
+### Prerequisites
+
+- Python 3.8 or higher
+- pip package manager
+- OpenRouter API key (get one at [openrouter.ai](https://openrouter.ai))
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd health_agent
 ```
-health_wellness_agent/
-├── main.py                 # Application entry point
-├── agent.py               # Main agent implementation
-├── context.py             # User session context
-├── guardrails.py          # Input/output validation
-├── tools/                 # Agent tools
-│   ├── goal_analyzer.py
-│   ├── meal_planner.py
-│   └── workout_recommender.py
-├── agents/                # Specialized agents
-│   ├── nutrition_expert_agent.py
-│   └── injury_support_agent.py
-└── requirements.txt       # Project dependencies
+
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-## Installation
-
-1. Clone the repository
-2. Create a virtual environment:
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
 3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-## Usage
+4. Set up environment variables:
+```bash
+cp sample.env .env
+```
+Edit `.env` and add your OpenRouter API key:
+```
+OPENROUTER_API_KEY=your_api_key_here
+```
 
-Run the example conversation flow:
+### Running the Application
 
+1. Start the Streamlit interface:
+```bash
+streamlit run app.py
+```
+
+2. Or use the CLI interface:
 ```bash
 python main.py
 ```
 
-Example interaction:
+## 🛠️ Project Structure
 
-```python
-agent = HealthWellnessAgent()
-await agent.initialize_session("UserName", 1)
-response = await agent.handle_message("My goal is to lose 5kg in 2 months")
+```
+health_wellness_agent/
+├── main.py              # CLI entry point
+├── app.py              # Streamlit web interface
+├── agent.py            # Core agent implementation
+├── context.py          # Session context management
+├── guardrails.py       # Input/output validation
+├── hooks.py            # Lifecycle hooks
+├── tools/              # Tool implementations
+│   ├── goal_analyzer.py
+│   ├── meal_planner.py
+│   ├── workout_recommender.py
+│   ├── scheduler.py
+│   └── tracker.py
+├── agents/             # Specialized agents
+│   ├── nutrition_expert_agent.py
+│   ├── injury_support_agent.py
+│   └── escalation_agent.py
+├── utils/              # Utility functions
+│   ├── agent_utils.py
+│   └── streaming.py
+└── config/             # Configuration files
+    ├── agent_config.json
+    └── settings.py
 ```
 
-## Features in Detail
+## 💡 Usage Examples
 
-### Goal Analysis
-- Parses natural language goal descriptions
-- Validates goal format and metrics
-- Structures goals for planning
+1. Setting a health goal:
+```
+You: I want to lose 5kg in 2 months
+Agent: [Analyzes goal and provides structured plan]
+```
 
-### Meal Planning
-- Generates 7-day meal plans
-- Considers dietary preferences and restrictions
-- Includes shopping lists and macronutrient breakdowns
+2. Getting a meal plan:
+```
+You: I need a vegetarian meal plan
+Agent: [Creates personalized meal plan considering preferences]
+```
 
-### Workout Recommendations
-- Creates personalized exercise plans
-- Adapts to user experience level
-- Provides form guidance and modifications
+3. Workout recommendations:
+```
+You: I want to start strength training
+Agent: [Provides beginner-friendly workout plan]
+```
 
-### Specialized Support
-- Nutrition Expert Agent for dietary conditions
-- Injury Support Agent for exercise modifications
-- Seamless handoffs between specialized agents
+4. Special considerations:
+```
+You: I have a knee injury
+Agent: [Hands off to injury support specialist]
+```
 
-## Contributing
+## 🔒 Safety & Privacy
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+- Input validation prevents harmful commands
+- Output sanitization ensures safe responses
+- No personal health data is stored permanently
+- All interactions are ephemeral and session-based
 
+## 📚 Documentation
 
-##.env 
-OPENAI_API_KEY=your_actual_key_here
-JWT_SECRET=your_actual_secret_here
-ENCRYPTION_KEY=your_actual_key_here
+For more detailed documentation on:
+- Tool development
+- Agent customization
+- Guardrails configuration
+- Lifecycle hooks
+- Streaming implementation
 
+Please refer to the [docs/](docs/) directory.
 
-## License
+## 🤝 Contributing
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) for details on how to submit pull requests.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## ⚠️ Disclaimer
+
+This agent is for informational purposes only and should not replace professional medical advice. Always consult healthcare professionals for medical decisions.
+
