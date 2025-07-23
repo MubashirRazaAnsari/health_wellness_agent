@@ -16,6 +16,16 @@ from utils.agent_utils import (
     validate_user_input,
     sanitize_response
 )
+from utils.openai_client import client
+from tools.goal_analyzer import analyze_goal
+from tools.meal_planner import meal_planner
+from tools.workout_recommender import workout_recommender
+from tools.scheduler import checkin_scheduler
+from tools.tracker import progress_tracker
+from agents.nutrition_expert_agent import NutritionExpertAgent
+from agents.injury_support_agent import InjurySupportAgent
+from agents.escalation_agent import EscalationAgent
+from guardrails import validate_goal_string, GoalOutput, MealPlanOutput, WorkoutPlanOutput
 
 class AsyncResponseIterator:
     """Async iterator for streaming responses from OpenRouter API."""
@@ -185,7 +195,6 @@ class HealthWellnessAgent:
         self.agent_hooks = agent_hooks
         
         # Initialize OpenAI client
-        self.client = None
         self.context = None
         
         # Initialize tools and components
@@ -195,9 +204,9 @@ class HealthWellnessAgent:
         """Initialize all components with proper error handling."""
         try:
             # Initialize OpenRouter client through config manager
-            self.client = self.config.get_ai_client()
-            if not self.client:
-                raise ValueError("Failed to initialize OpenRouter client")
+            # self.client = self.config.get_ai_client() # This line is removed
+            if not client: # Check if client is initialized
+                raise ValueError("Failed to initialize OpenAI client")
             
             # Register tools
             self._register_tools()
@@ -209,26 +218,9 @@ class HealthWellnessAgent:
             print("Agent will continue with limited functionality")
     
     def _register_tools(self):
-        """Register all tools with the tool manager."""
-        try:
-            # Import and register tools
-            from tools.goal_analyzer import GoalAnalyzerTool
-            from tools.meal_planner import MealPlannerTool
-            from tools.workout_recommender import WorkoutRecommenderTool
-            from agents.nutrition_expert_agent import NutritionExpertAgent
-            from agents.injury_support_agent import InjurySupportAgent
+        """Register function-calling tools with the OpenAI client."""
+        self.tools = [analyze_goal]
 
-            self.tool_manager.register_tool("goal_analyzer", GoalAnalyzerTool)
-            self.tool_manager.register_tool("meal_planner", MealPlannerTool)
-            self.tool_manager.register_tool("workout_recommender", WorkoutRecommenderTool)
-            self.tool_manager.register_tool("nutrition_expert", NutritionExpertAgent)
-            self.tool_manager.register_tool("injury_support", InjurySupportAgent)
-            
-        except ImportError as e:
-            print(f"Warning: Could not import some tools: {str(e)}")
-        except Exception as e:
-            print(f"Error registering tools: {str(e)}")
-    
     @async_error_handler("Failed to initialize session. Please try again.")
     async def initialize_session(self, user_name: str, user_id: int) -> None:
         """Initialize a new user session."""
@@ -250,60 +242,48 @@ class HealthWellnessAgent:
                 'update_workout_plan': lambda x: None
             })()
     
-    @async_error_handler("I'm having trouble connecting to the AI service. Please try again.")
     async def get_ai_response(self, message: str, system_prompt: str = None) -> str:
-        """Get response from AI model with enhanced error handling."""
-        if not self.client:
+        """Get response from AI model, using function calling if a tool matches. Moderate output."""
+        if not client:
             return "I'm currently unable to connect to the AI service. Please try again later."
-        
-        try:
-            messages = []
-            
-            # Add formatting instructions to system prompt
-            formatting_instructions = """
-            Format your responses with proper structure:
-            - Use numbered lists for sequential steps (1., 2., etc.)
-            - Use bullet points for non-sequential items
-            - Add line breaks between paragraphs
-            - Highlight important points with emphasis
-            - Break down complex information into digestible sections
-            """
-            
-            # Add system prompt if provided
-            if system_prompt:
-                messages.append({
-                    "role": "system", 
-                    "content": f"{system_prompt}\n\n{formatting_instructions}"
-                })
-            else:
-                messages.append({
-                    "role": "system",
-                    "content": formatting_instructions
-                })
-            
-            # Add context information
-            context_info = self._build_context_info()
-            if context_info:
-                message = f"{message}\n\nContext: {context_info}"
-            
-            messages.append({"role": "user", "content": message})
-            
-            # Get model configuration
-            model_config = self.config.get("model", {})
-            
-            response = self.client.chat.completions.create(
-                model=self.config.get_current_model(),
-                messages=messages,
-                temperature=model_config.get("temperature", 0.7),
-                max_tokens=model_config.get("max_tokens", 500)
-            )
-            
-            result = response.choices[0].message.content
-            return sanitize_response(result)
-            
-        except Exception as e:
-            print(f"Error in get_ai_response: {str(e)}")
-            return "I apologize, but I'm experiencing some technical difficulties. Please try again."
+
+        # Example: if the message looks like a goal analysis request, use the tool
+        if validate_goal_string(message):
+            tool = analyze_goal
+            tool_args = {"goal_string": message}
+            result = await tool(**tool_args)
+            # Moderate tool output
+            moderation = client.moderations.create(input=str(result))
+            if moderation.results[0].flagged:
+                return "⚠️ The response was flagged as unsafe. Please rephrase your request."
+            return str(result)
+
+        # Otherwise, do a normal chat completion
+        messages = []
+        formatting_instructions = """
+        Format your responses with proper structure:
+        - Use numbered lists for sequential steps (1., 2., etc.)
+        - Use bullet points for non-sequential items
+        - Add line breaks between paragraphs
+        - Highlight important points with emphasis
+        - Break down complex information into digestible sections
+        """
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": message})
+        model_config = self.config.get("model", {})
+        response = client.chat.completions.create(
+            model=self.config.get_current_model(),
+            messages=messages,
+            temperature=0.7,
+            max_tokens=1000
+        )
+        content = response.choices[0].message.content
+        # Moderate LLM output
+        moderation = client.moderations.create(input=content)
+        if moderation.results[0].flagged:
+            return "⚠️ The response was flagged as unsafe. Please rephrase your request."
+        return content
     
     @async_error_handler("Error in streaming response")
     async def get_streaming_response(
@@ -323,7 +303,7 @@ class HealthWellnessAgent:
         Returns:
             ImprovedAsyncResponseIterator for streaming responses
         """
-        if not self.client:
+        if not client: # Check if client is initialized
             raise ValueError("AI client not initialized")
 
         try:
@@ -396,7 +376,7 @@ class HealthWellnessAgent:
             
             # Return improved async iterator
             return ImprovedAsyncResponseIterator(
-                client=self.client,
+                client=client,
                 messages=messages,
                 model=self.config.get_current_model(),
                 config=model_config
@@ -699,3 +679,48 @@ class HealthWellnessAgent:
                 "message": "I apologize, but I'm experiencing some technical difficulties. Please try again or rephrase your question.",
                 "error": True
             }
+
+    async def run(self, message: str, context: UserSessionContext):
+        # Input guardrail: goal analysis
+        if validate_goal_string(message):
+            result = await analyze_goal(goal_string=message)
+            if "error" not in result:
+                context.goal = result
+            return result
+        # Handoff triggers
+        if "diabetic" in message or "allergy" in message or "nutrition" in message:
+            return await self.specialized_agents["nutrition"].run(context, message)
+        if "injury" in message or "pain" in message:
+            return await self.specialized_agents["injury"].run(context, message)
+        if "trainer" in message or "human" in message or "coach" in message:
+            return await self.specialized_agents["escalation"].run(context, message)
+        # Meal planner
+        if "meal" in message or "diet" in message:
+            if context.goal:
+                return await meal_planner(goal=context.goal, diet_preferences=context.diet_preferences)
+            else:
+                return {"error": "Please specify your health goal first."}
+        # Workout recommender
+        if "workout" in message or "exercise" in message:
+            if context.goal:
+                return await workout_recommender(goal=context.goal)
+            else:
+                return {"error": "Please specify your health goal first."}
+        # Check-in scheduler
+        if "check-in" in message or "reminder" in message:
+            return await checkin_scheduler(user_id=context.uid)
+        # Progress tracker
+        if "progress" in message or "update" in message:
+            return await progress_tracker(user_id=context.uid, update=message)
+        # Default: fallback to OpenAI chat
+        messages = [
+            {"role": "system", "content": "You are a helpful health and wellness assistant."},
+            {"role": "user", "content": message}
+        ]
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo-1106",
+            messages=messages,
+            temperature=0.7,
+            max_tokens=500
+        )
+        return response.choices[0].message.content

@@ -4,4 +4,5 @@ python-dotenv>=1.0.0
 streamlit>=1.30.0
 typing-extensions>=4.8.0
 asyncio>=3.4.3
-questionary>=2.0.0 
+questionary>=2.0.0
+guardrails-ai>=0.3.0 # Optional, for advanced output validation 
